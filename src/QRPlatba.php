@@ -16,11 +16,13 @@ namespace Defr\QRPlatba;
 use DateTime;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelMedium;
 use Endroid\QrCode\Label\Alignment\LabelAlignmentLeft;
 use Endroid\QrCode\Label\Font\OpenSans;
 use Endroid\QrCode\Label\Label;
 use Endroid\QrCode\QrCode;
+use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\RoundBlockSizeMode\RoundBlockSizeModeEnlarge;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\SvgWriter;
@@ -231,7 +233,7 @@ class QRPlatba
      */
     public function addAlternativeAccount(string $account): self
     {
-        $this->spdKeys['ALT-ACC'] .= ($this->spdKeys['ALT-ACC'] ? ',' : '').$this->prepareIban($account);
+        $this->spdKeys['ALT-ACC'] .= ($this->spdKeys['ALT-ACC'] ? ',' : '') . $this->prepareIban($account);
 
         return $this;
     }
@@ -410,7 +412,7 @@ class QRPlatba
      */
     public function setTaxPerformance(int $tp): self
     {
-        if ($tp!==0 && $tp!==1 && $tp!==2) {
+        if ($tp !== 0 && $tp !== 1 && $tp !== 2) {
             throw new QRPlatbaException('Unknown tax performance ID');
         }
 
@@ -435,7 +437,7 @@ class QRPlatba
      */
     public function setInvoiceDocumentType(int $td): self
     {
-        if (($td<0 || $td>5) && $td!==9) {
+        if (($td < 0 || $td > 5) && $td !== 9) {
             throw new QRPlatbaException('Unknown invoice document type ID');
         }
 
@@ -554,11 +556,11 @@ class QRPlatba
      */
     public function setTaxBase(float $amount, int $taxLevelId): self
     {
-        if ($taxLevelId<0 || $taxLevelId>2) {
+        if ($taxLevelId < 0 || $taxLevelId > 2) {
             throw new QRPlatbaException('Unknown tax level ID');
         }
 
-        $this->sidKeys['TB'.$taxLevelId] = sprintf('%.2f', $amount);
+        $this->sidKeys['TB' . $taxLevelId] = sprintf('%.2f', $amount);
 
         return $this;
     }
@@ -572,11 +574,11 @@ class QRPlatba
      */
     public function setTaxAmount(float $amount, int $taxLevelId): self
     {
-        if ($taxLevelId<0 || $taxLevelId>2) {
+        if ($taxLevelId < 0 || $taxLevelId > 2) {
             throw new QRPlatbaException('Unknown tax level ID');
         }
 
-        $this->sidKeys['T'.$taxLevelId] = sprintf('%.2f', $amount);
+        $this->sidKeys['T' . $taxLevelId] = sprintf('%.2f', $amount);
 
         return $this;
     }
@@ -638,7 +640,7 @@ class QRPlatba
                 if (null === $value) {
                     continue;
                 }
-                $chunks[] = $key.':'.$value;
+                $chunks[] = $key . ':' . $value;
             }
             $encodedString .= implode('*', $chunks);
         }
@@ -651,18 +653,18 @@ class QRPlatba
                     null === $value ||
                     ($this->isOnlyInvoice === false && (
                             (isset($this->spdKeys[$key]) && $this->spdKeys[$key] === $value) ||
-                            (isset($this->spdKeys['X-'.$key]) && $this->spdKeys['X-'.$key] === $value)
+                            (isset($this->spdKeys['X-' . $key]) && $this->spdKeys['X-' . $key] === $value)
                         ))
                 ) {
                     continue;
                 }
-                $chunks[] = $key.':'.$value;
+                $chunks[] = $key . ':' . $value;
             }
 
             if ($this->isOnlyInvoice === false) {
-                $encodedString .= '*X-INV:'.implode('%2A', $chunks).'*';
+                $encodedString .= '*X-INV:' . implode('%2A', $chunks) . '*';
             } else {
-                $encodedString .= implode('*', $chunks).'*';
+                $encodedString .= implode('*', $chunks) . '*';
             }
         }
 
@@ -721,14 +723,16 @@ class QRPlatba
      */
     public function getQRCodeInstance(int $size = 300, int $margin = 10): QrCode
     {
-        return QrCode::create((string) $this)
-            ->setSize($size - ($margin * 2))
-            ->setEncoding(new Encoding('UTF-8'))
-            ->setErrorCorrectionLevel(new ErrorCorrectionLevelMedium())
-            ->setMargin($margin)
-            ->setRoundBlockSizeMode(new RoundBlockSizeModeEnlarge())
-            ->setForegroundColor(new Color(0, 0, 0, 0))
-            ->setBackgroundColor(new Color(255, 255, 255, 0));
+        return new QrCode(
+            data: (string)$this,
+            encoding: new Encoding('UTF-8'),
+            errorCorrectionLevel: ErrorCorrectionLevel::Medium,
+            size: $size,
+            margin: $margin,
+            roundBlockSizeMode: RoundBlockSizeMode::Margin,
+            foregroundColor: new Color(0, 0, 0),
+            backgroundColor: new Color(255, 255, 255)
+        );
     }
 
     /**
@@ -751,7 +755,7 @@ class QRPlatba
         }
 
         $accountPart = sprintf('%06d%010s', $pre, $acc);
-        $iban = 'CZ00'.$bank.$accountPart;
+        $iban = 'CZ00' . $bank . $accountPart;
 
         $alfa = 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z';
         $alfa = explode(' ', $alfa);
@@ -762,7 +766,7 @@ class QRPlatba
         $controlegetal = str_replace(
             $alfa,
             $alfa_replace,
-            mb_substr($iban, 4, mb_strlen($iban) - 4).mb_substr($iban, 0, 2).'00'
+            mb_substr($iban, 4, mb_strlen($iban) - 4) . mb_substr($iban, 0, 2) . '00'
         );
         $controlegetal = 98 - (int)bcmod($controlegetal, '97');
         $iban = sprintf('CZ%02d%04d%06d%010s', $controlegetal, $bank, $pre, $acc);
@@ -799,10 +803,11 @@ class QRPlatba
     private function getLabelInstance(): ?Label
     {
         if ($this->label !== null) {
-            return Label::create($this->label)
-                ->setAlignment(new LabelAlignmentLeft())
-                ->setFont(new OpenSans())
-                ->setTextColor(new Color(0, 0, 0, 0));
+            return new Label(
+                text: $this->label,
+                font: new OpenSans(),
+                textColor: new Color(0, 0, 0, 0),
+            );
         }
 
         return null;
